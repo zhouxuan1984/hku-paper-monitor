@@ -73,7 +73,8 @@ def _deduplicate(papers):
 
 def _make_paper(source, source_id, title="", doi="", abstract="",
                 publication_date="", journal="", url="", authors=None,
-                institutions=None, concept_ids=None):
+                institutions=None, concept_ids=None,
+                citation_count=None, citation_percentile=None):
     if authors is None:
         authors = []
     if institutions is None:
@@ -102,6 +103,8 @@ def _make_paper(source, source_id, title="", doi="", abstract="",
         "institutions": sorted(set(institutions)),
         "hk_institutions": hk_insts,
         "concept_ids": concept_ids,
+        "citation_count": citation_count,
+        "citation_percentile": citation_percentile,
         "topics": [],
     }
 
@@ -158,6 +161,15 @@ def _fetch_openalex(date_str):
                 .get("display_name", "")
             )
 
+            cby = work.get("cited_by_count")
+            cby_pctl = work.get("cited_by_percentile_year")
+            cby_pctl_str = None
+            if cby_pctl and isinstance(cby_pctl, dict):
+                lo = cby_pctl.get("min")
+                hi = cby_pctl.get("max")
+                if lo is not None and hi is not None:
+                    cby_pctl_str = f"{lo}-{hi}"
+
             p = _make_paper(
                 source="OpenAlex",
                 source_id=work.get("id", ""),
@@ -170,6 +182,8 @@ def _fetch_openalex(date_str):
                 authors=author_names,
                 institutions=list(inst_names),
                 concept_ids=concept_ids,
+                citation_count=cby,
+                citation_percentile=cby_pctl_str,
             )
             papers.append(p)
 
@@ -415,7 +429,7 @@ def _fetch_semantic_scholar(date_str):
         query = urllib.request.quote(q)
         url = (f"https://api.semanticscholar.org/graph/v1/paper/search"
                f"?query={query}&year={year}&limit=100&fields=title,abstract,"
-               f"externalIds,authors,publicationDate,journal,url")
+               f"externalIds,authors,publicationDate,journal,url,citationCount")
 
         try:
             resp = _req(url, timeout=30)
@@ -454,6 +468,7 @@ def _fetch_semantic_scholar(date_str):
                 url=hit.get("url", f"https://api.semanticscholar.org/{hit.get('paperId','')}"),
                 authors=authors,
                 institutions=[],
+                citation_count=hit.get("citationCount"),
             )
             papers.append(p)
 

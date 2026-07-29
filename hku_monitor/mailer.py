@@ -58,14 +58,30 @@ def build_html(data):
             if doi:
                 doi_link = f'<a href="https://doi.org/{doi}" style="color:#0366d6;">doi:{doi}</a>'
 
+            cites = p.get("citation_count")
+            pctl = p.get("citation_percentile")
+            cite_html = ""
+            if cites is not None:
+                cite_html += f'被引 {cites}'
+                if pctl:
+                    cite_html += f' · 百分位 {pctl}%'
+                cite_html = f'<br><span style="color:#888;font-size:11px;">{cite_html}</span>'
+
+            paper_url = p.get("url", "")
+            direct_link = ""
+            if paper_url and paper_url.startswith("http"):
+                direct_link = f' · <a href="{paper_url}" style="color:#0366d6;">🔗 原文</a>'
+            elif doi:
+                direct_link = f' · <a href="https://doi.org/{doi}" style="color:#0366d6;">🔗 原文</a>'
+
             paper_rows += f"""
             <tr>
               <td style="padding:8px 12px;border-bottom:1px solid #eee;">{i}</td>
               <td style="padding:8px 12px;border-bottom:1px solid #eee;">
                 <strong>{p['title']}</strong> {source_tag}<br>
                 <span style="color:#666;font-size:12px;">
-                  {p.get("publication_date","")} · {p.get("primary_location","")} · {doi_link}
-                </span><br>
+                  {p.get("publication_date","")} · {p.get("primary_location","")} · {doi_link}{direct_link}
+                </span>{cite_html}<br>
                 <span style="color:#888;font-size:12px;">{insts_str}</span>
               </td>
               <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:13px;color:#555;max-width:500px;">
