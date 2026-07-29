@@ -49,9 +49,7 @@ def build_html(data):
             insts = _get_hk_insts(p)
             insts_str = " · ".join(insts) if insts else ", ".join(p.get("institutions", [])[:2])
             source_tag = f'<span style="background:#e8f0fe;padding:1px 6px;border-radius:3px;font-size:11px;color:#0366d6;">{p.get("source","")}</span>'
-            abstract = (p.get("abstract") or "")[:300]
-            if len(p.get("abstract", "")) > 300:
-                abstract += "..."
+            abstract = (p.get("abstract") or "")
 
             doi = p.get("doi", "")
             doi_link = ""
@@ -84,7 +82,7 @@ def build_html(data):
                 </span>{cite_html}<br>
                 <span style="color:#888;font-size:12px;">{insts_str}</span>
               </td>
-              <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:13px;color:#555;max-width:500px;">
+              <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:13px;color:#555;">
                 {abstract}
               </td>
             </tr>"""
