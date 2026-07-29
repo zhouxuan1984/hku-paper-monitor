@@ -163,19 +163,24 @@ def send_email(data, html_content, subject):
         print("[EMAIL] Subject:", subject)
         return
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = email_addr
-    msg["To"] = ", ".join(recipients)
-    msg["Date"] = email.utils.formatdate(localtime=True)
+    success, failed = 0, 0
+    for recipient in recipients:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = email_addr
+        msg["To"] = recipient
+        msg["Date"] = email.utils.formatdate(localtime=True)
+        msg.attach(MIMEText(build_plain_text(data), "plain", "utf-8"))
+        msg.attach(MIMEText(html_content, "html", "utf-8"))
 
-    msg.attach(MIMEText(build_plain_text(data), "plain", "utf-8"))
-    msg.attach(MIMEText(html_content, "html", "utf-8"))
+        try:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port) as s:
+                s.login(email_addr, auth_code)
+                s.sendmail(email_addr, [recipient], msg.as_string())
+            print(f"[EMAIL] Sent to {recipient}")
+            success += 1
+        except Exception as e:
+            print(f"[EMAIL] Failed to send to {recipient}: {e}")
+            failed += 1
 
-    try:
-        with smtplib.SMTP_SSL(smtp_host, smtp_port) as s:
-            s.login(email_addr, auth_code)
-            s.sendmail(email_addr, recipients, msg.as_string())
-        print(f"[EMAIL] Sent to {', '.join(recipients)} via {smtp_host}")
-    except Exception as e:
-        print(f"[EMAIL] Failed: {e}")
+    print(f"[EMAIL] Done: {success} sent, {failed} failed")
