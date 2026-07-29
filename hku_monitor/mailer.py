@@ -7,36 +7,24 @@ from email.mime.multipart import MIMEMultipart
 from .config import INSTITUTIONS, TOPICS
 
 
-def _ror_to_name():
-    return {v["ror"]: k for k, v in INSTITUTIONS.items()}
-
-
-def _inst_name_by_id(inst_set):
-    r2n = _ror_to_name()
-    resolved = set()
-    for s in inst_set:
-        matched = False
+def _get_hk_insts(p):
+    hk = p.get("hk_institutions")
+    if hk:
+        return sorted(hk)
+    r2n = {v["ror"]: k for k, v in INSTITUTIONS.items()}
+    found = set()
+    for s in p.get("institutions", []):
         for ror, cname in r2n.items():
             if ror in s:
-                resolved.add(cname)
-                matched = True
-                break
-        if not matched:
-            resolved.add(s)
-    return sorted(resolved)
+                found.add(cname)
+    return sorted(found)
 
 
 def _count_papers_by_uni(all_papers):
-    r2n = _ror_to_name()
     counts = {name: 0 for name in INSTITUTIONS}
     for p in all_papers:
-        seen = set()
-        for inst_str in p.get("institutions", []):
-            for ror, cname in r2n.items():
-                if ror in inst_str and cname not in seen:
-                    counts[cname] = counts.get(cname, 0) + 1
-                    seen.add(cname)
-                    break
+        for cname in _get_hk_insts(p):
+            counts[cname] = counts.get(cname, 0) + 1
     return [(k, v) for k, v in counts.items() if v > 0]
 
 
@@ -58,8 +46,9 @@ def build_html(data):
             continue
         paper_rows = ""
         for i, p in enumerate(papers[:10], 1):
-            insts = _inst_name_by_id(p.get("institutions", []))
-            insts_str = " · ".join(insts) if insts else p.get("institutions", [])
+            insts = _get_hk_insts(p)
+            insts_str = " · ".join(insts) if insts else ", ".join(p.get("institutions", [])[:2])
+            source_tag = f'<span style="background:#e8f0fe;padding:1px 6px;border-radius:3px;font-size:11px;color:#0366d6;">{p.get("source","")}</span>'
             abstract = (p.get("abstract") or "")[:300]
             if len(p.get("abstract", "")) > 300:
                 abstract += "..."
@@ -73,7 +62,7 @@ def build_html(data):
             <tr>
               <td style="padding:8px 12px;border-bottom:1px solid #eee;">{i}</td>
               <td style="padding:8px 12px;border-bottom:1px solid #eee;">
-                <strong>{p['title']}</strong><br>
+                <strong>{p['title']}</strong> {source_tag}<br>
                 <span style="color:#666;font-size:12px;">
                   {p.get("publication_date","")} · {p.get("primary_location","")} · {doi_link}
                 </span><br>
@@ -120,7 +109,7 @@ def build_html(data):
 {''.join(rows)}
 
 <div style="border-top:1px solid #ddd;margin-top:30px;padding-top:12px;font-size:12px;color:#999;">
-  <p>由 HK Research Daily Monitor 自动生成 · 数据来源: OpenAlex</p>
+  <p>由 HK Research Daily Monitor 自动生成 · 数据来源: OpenAlex + PubMed + arXiv + Semantic Scholar</p>
   <p>覆盖领域: {' · '.join(topic_order)}</p>
   <p>覆盖院校: {' · '.join(INSTITUTIONS.keys())}</p>
 </div>
@@ -140,8 +129,12 @@ def build_plain_text(data):
     for tname, papers in by_topic.items():
         lines.append(f"【{tname}】({len(papers)}篇)")
         for i, p in enumerate(papers[:5], 1):
+            src = p.get("source", "")
+            insts = " · ".join(_get_hk_insts(p))
             doi = p.get("doi", "")
-            lines.append(f"  {i}. [{p.get('primary_location','?')}] {p['title']}")
+            lines.append(f"  {i}. [{src}] {p['title']}")
+            if insts:
+                lines.append(f"     {insts}")
             if doi:
                 lines.append(f"     https://doi.org/{doi}")
         lines.append("")

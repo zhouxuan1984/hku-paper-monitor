@@ -9,6 +9,17 @@ INSTITUTIONS = {
     "香港教育大学":    {"openalex": "I4210086892",   "ror": "02x0r5z94"},
 }
 
+INSTITUTION_KEYWORDS = {
+    "香港大学": ["University of Hong Kong", "HKU"],
+    "香港中文大学": ["Chinese University of Hong Kong", "CUHK"],
+    "香港科技大学": ["Hong Kong University of Science and Technology", "HKUST"],
+    "香港城市大学": ["City University of Hong Kong", "CityU"],
+    "香港理工大学": ["Hong Kong Polytechnic University", "PolyU"],
+    "香港浸会大学": ["Hong Kong Baptist University", "HKBU"],
+    "香港岭南大学": ["Lingnan University"],
+    "香港教育大学": ["Education University of Hong Kong", "EdUHK"],
+}
+
 TOPICS = [
     {
         "name": "集成电路",
