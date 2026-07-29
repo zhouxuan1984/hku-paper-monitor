@@ -153,18 +153,20 @@ def send_email(data, html_content, subject):
     smtp_port = int(os.environ.get("SMTP_PORT", "465"))
     email_addr = os.environ.get("EMAIL_ADDRESS", "")
     auth_code = os.environ.get("EMAIL_AUTH_CODE", "")
-    recipient = os.environ.get("RECIPIENT_EMAIL", email_addr)
+    raw_recipients = os.environ.get("RECIPIENT_EMAIL", email_addr)
+    recipients = [r.strip() for r in raw_recipients.replace(";", ",").split(",") if r.strip()]
 
     if not email_addr or not auth_code:
         print("[EMAIL] EMAIL_ADDRESS or EMAIL_AUTH_CODE not set, skipping send")
-        print("[EMAIL] Would send to:", recipient)
+        for r in recipients:
+            print("[EMAIL] Would send to:", r)
         print("[EMAIL] Subject:", subject)
         return
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = email_addr
-    msg["To"] = recipient
+    msg["To"] = ", ".join(recipients)
     msg["Date"] = email.utils.formatdate(localtime=True)
 
     msg.attach(MIMEText(build_plain_text(data), "plain", "utf-8"))
@@ -173,7 +175,7 @@ def send_email(data, html_content, subject):
     try:
         with smtplib.SMTP_SSL(smtp_host, smtp_port) as s:
             s.login(email_addr, auth_code)
-            s.sendmail(email_addr, [recipient], msg.as_string())
-        print(f"[EMAIL] Sent to {recipient} via {smtp_host}")
+            s.sendmail(email_addr, recipients, msg.as_string())
+        print(f"[EMAIL] Sent to {', '.join(recipients)} via {smtp_host}")
     except Exception as e:
         print(f"[EMAIL] Failed: {e}")
