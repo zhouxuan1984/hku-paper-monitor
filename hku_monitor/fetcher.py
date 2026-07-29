@@ -404,17 +404,17 @@ def _fetch_arxiv(date_str):
 def _fetch_semantic_scholar(date_str):
     year = date_str[:4]
     papers = []
-    time.sleep(3)
-    batch_size = 2
-    topic_batches = [TOPICS[i:i + batch_size]
-                     for i in range(0, len(TOPICS), batch_size)]
+    queries = [
+        "artificial intelligence machine learning Hong Kong",
+        "engineering robotics semiconductor Hong Kong",
+        "biomedical quantum materials Hong Kong",
+    ]
 
-    for batch in topic_batches:
+    for q in queries:
         time.sleep(3)
-        bulk_query = " OR ".join(t["name"] for t in batch)
-        query = urllib.request.quote(f"({bulk_query}) Hong Kong")
+        query = urllib.request.quote(q)
         url = (f"https://api.semanticscholar.org/graph/v1/paper/search"
-               f"?query={query}&year={year}&limit=50&fields=title,abstract,"
+               f"?query={query}&year={year}&limit=100&fields=title,abstract,"
                f"externalIds,authors,publicationDate,journal,url")
 
         try:
@@ -423,13 +423,11 @@ def _fetch_semantic_scholar(date_str):
         except Exception as e:
             print(f"  [WARN] Semantic Scholar API error: {e}")
             if "429" in str(e):
-                print(f"  [WARN] Rate limited, skipping remaining Semantic Scholar queries")
-                break
-            continue
+                print(f"  [WARN] Rate limited, skipping")
+            break
 
         for hit in data.get("data", []):
             authors = []
-            institutions = []
             for a in hit.get("authors", []):
                 aname = a.get("name", "")
                 if aname:
@@ -437,10 +435,8 @@ def _fetch_semantic_scholar(date_str):
 
             ext_ids = hit.get("externalIds", {}) or {}
             doi = ext_ids.get("DOI", "")
-            pmid = ext_ids.get("PubMed", "")
 
-            hk_insts = [a for a in authors if _match_hk_institution(a)]
-            if not hk_insts:
+            if not any(_match_hk_institution(a) for a in authors):
                 continue
 
             pdate = hit.get("publicationDate", "") or ""
@@ -457,9 +453,8 @@ def _fetch_semantic_scholar(date_str):
                 journal=jname,
                 url=hit.get("url", f"https://api.semanticscholar.org/{hit.get('paperId','')}"),
                 authors=authors,
-                institutions=institutions,
+                institutions=[],
             )
-            p["hk_institutions"] = hk_insts
             papers.append(p)
 
     print(f"  [Semantic Scholar] {len(papers)} papers")
