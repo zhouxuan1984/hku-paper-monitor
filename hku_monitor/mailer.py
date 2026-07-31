@@ -4,7 +4,7 @@ import email.utils
 from datetime import date as Date
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from .config import INSTITUTIONS, TOPICS
+from .config import INSTITUTIONS
 
 
 def _get_hk_insts(p):
@@ -31,79 +31,66 @@ def _count_papers_by_uni(all_papers):
 def build_html(data):
     date_str = data["date"]
     total = data["total_papers"]
-    by_topic = data["by_topic"]
+    ranked = data["ranked_papers"]
     all_papers = data["all_papers"]
-
-    topic_order = [t["name"] for t in TOPICS]
 
     uni_counts = _count_papers_by_uni(all_papers)
     uni_summary = " · ".join(f"{name} {n}篇" for name, n in uni_counts)
 
-    rows = []
-    for tname in topic_order:
-        papers = by_topic.get(tname)
-        if not papers:
-            continue
-        paper_rows = ""
-        for i, p in enumerate(papers[:10], 1):
-            insts = _get_hk_insts(p)
-            insts_str = " · ".join(insts) if insts else ", ".join(p.get("institutions", [])[:2])
-            source_tag = f'<span style="background:#e8f0fe;padding:1px 6px;border-radius:3px;font-size:11px;color:#0366d6;">{p.get("source","")}</span>'
-            abstract = (p.get("abstract") or "")
+    if len(ranked) > 150:
+        ranked = ranked[:150]
+        trunc_note = f'<div style="color:#c0392b;font-size:13px;margin:8px 0;">⚠ 论文较多，仅展示前 150 篇（按影响因子排序）</div>'
+    else:
+        trunc_note = ""
 
-            doi = p.get("doi", "")
-            doi_link = ""
-            if doi:
-                doi_link = f'<a href="https://doi.org/{doi}" style="color:#0366d6;">doi:{doi}</a>'
+    paper_rows = ""
+    for i, p in enumerate(ranked, 1):
+        insts = _get_hk_insts(p)
+        insts_str = " · ".join(insts) if insts else ", ".join(p.get("institutions", [])[:2])
+        source_tag = f'<span style="background:#e8f0fe;padding:1px 6px;border-radius:3px;font-size:11px;color:#0366d6;">{p.get("source","")}</span>'
+        abstract = (p.get("abstract") or "")
 
-            cites = p.get("citation_count")
-            pctl = p.get("citation_percentile")
-            cite_html = ""
-            if cites is not None:
-                cite_html += f'被引 {cites}'
-                if pctl:
-                    cite_html += f' · 百分位 {pctl}%'
-                cite_html = f'<br><span style="color:#888;font-size:11px;">{cite_html}</span>'
+        doi = p.get("doi", "")
+        doi_link = ""
+        if doi:
+            doi_link = f'<a href="https://doi.org/{doi}" style="color:#0366d6;">doi:{doi}</a>'
 
-            paper_url = p.get("url", "")
-            direct_link = ""
-            if paper_url and paper_url.startswith("http"):
-                direct_link = f' · <a href="{paper_url}" style="color:#0366d6;">🔗 原文</a>'
-            elif doi:
-                direct_link = f' · <a href="https://doi.org/{doi}" style="color:#0366d6;">🔗 原文</a>'
+        if_val = p.get("impact_factor")
+        if if_val is not None:
+            if_html = f'<span style="background:#fff3cd;padding:1px 6px;border-radius:3px;font-size:12px;color:#8a6d3b;font-weight:bold;">IF {if_val}</span> '
+        else:
+            if_html = '<span style="background:#eee;padding:1px 6px;border-radius:3px;font-size:12px;color:#999;">IF —</span> '
 
-            paper_rows += f"""
-            <tr>
-              <td style="padding:8px 12px;border-bottom:1px solid #eee;">{i}</td>
-              <td style="padding:8px 12px;border-bottom:1px solid #eee;">
-                <strong>{p['title']}</strong> {source_tag}<br>
-                <span style="color:#666;font-size:12px;">
-                  {p.get("publication_date","")} · {p.get("primary_location","")} · {doi_link}{direct_link}
-                </span>{cite_html}<br>
-                <span style="color:#888;font-size:12px;">{insts_str}</span>
-              </td>
-              <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:13px;color:#555;">
-                {abstract}
-              </td>
-            </tr>"""
+        cites = p.get("citation_count")
+        pctl = p.get("citation_percentile")
+        cite_html = ""
+        if cites is not None:
+            cite_html += f'被引 {cites}'
+            if pctl:
+                cite_html += f' · 百分位 {pctl}%'
+            cite_html = f'<br><span style="color:#888;font-size:11px;">{cite_html}</span>'
 
-        rows.append(f"""
-        <h3 style="background:#f6f8fa;padding:10px 16px;border-radius:6px;margin:24px 0 12px;font-size:16px;">
-          {tname}
-          <span style="font-weight:normal;font-size:13px;color:#666;margin-left:8px;">共 {len(papers)} 篇</span>
-        </h3>
-        <table style="width:100%;border-collapse:collapse;font-size:14px;">
-          <thead>
-            <tr style="background:#f1f1f1;">
-              <th style="padding:6px 12px;text-align:left;width:32px;">#</th>
-              <th style="padding:6px 12px;text-align:left;">论文</th>
-              <th style="padding:6px 12px;text-align:left;">摘要</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paper_rows}
-          </tbody>
-        </table>""")
+        paper_url = p.get("url", "")
+        direct_link = ""
+        if paper_url and paper_url.startswith("http"):
+            direct_link = f' · <a href="{paper_url}" style="color:#0366d6;">🔗 原文</a>'
+        elif doi:
+            direct_link = f' · <a href="https://doi.org/{doi}" style="color:#0366d6;">🔗 原文</a>'
+
+        paper_rows += f"""
+        <tr>
+          <td style="padding:8px 12px;border-bottom:1px solid #eee;">{i}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #eee;">
+            <strong>{p['title']}</strong> {source_tag}<br>
+            <span style="color:#666;font-size:12px;">
+              {if_html}{p.get("publication_date","")} · {p.get("journal","")} · {doi_link}{direct_link}
+            </span>{cite_html}<br>
+            <span style="color:#888;font-size:12px;">{insts_str}</span>
+          </td>
+          <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:13px;color:#555;">
+            {abstract}
+          </td>
+        </tr>"""
 
     html = f"""<!DOCTYPE html>
 <html>
@@ -113,19 +100,31 @@ def build_html(data):
 <div style="border-bottom:2px solid #0366d6;padding-bottom:12px;margin-bottom:20px;">
   <h1 style="font-size:22px;margin:0 0 4px;">HK Research Daily</h1>
   <div style="color:#666;font-size:14px;">
-    香港八校核心期刊论文监测 · {date_str} · 共 <b>{total}</b> 篇匹配
+    香港八校论文监测（按期刊影响因子排名） · {date_str} · 共 <b>{total}</b> 篇
   </div>
   <div style="color:#888;font-size:13px;margin-top:4px;">
     {uni_summary}
   </div>
 </div>
 
-{''.join(rows)}
+{trunc_note}
+
+<table style="width:100%;border-collapse:collapse;font-size:14px;">
+  <thead>
+    <tr style="background:#f1f1f1;">
+      <th style="padding:6px 12px;text-align:left;width:32px;">#</th>
+      <th style="padding:6px 12px;text-align:left;">论文</th>
+      <th style="padding:6px 12px;text-align:left;">摘要</th>
+    </tr>
+  </thead>
+  <tbody>
+    {paper_rows}
+  </tbody>
+</table>
 
 <div style="border-top:1px solid #ddd;margin-top:30px;padding-top:12px;font-size:12px;color:#999;">
   <p>由 HK Research Daily Monitor 自动生成 · 数据来源: OpenAlex + PubMed + arXiv + Semantic Scholar</p>
-  <p>覆盖领域: {' · '.join(topic_order)}</p>
-  <p>覆盖院校: {' · '.join(INSTITUTIONS.keys())}</p>
+  <p>影响因子来源: 2024 JCR (Clarivate) · 覆盖院校: {' · '.join(INSTITUTIONS.keys())}</p>
 </div>
 
 </body>
@@ -137,21 +136,21 @@ def build_html(data):
 def build_plain_text(data):
     date_str = data["date"]
     total = data["total_papers"]
-    by_topic = data["by_topic"]
+    ranked = data["ranked_papers"]
 
-    lines = [f"HK Research Daily - {date_str}", f"共 {total} 篇匹配\n"]
-    for tname, papers in by_topic.items():
-        lines.append(f"【{tname}】({len(papers)}篇)")
-        for i, p in enumerate(papers[:5], 1):
-            src = p.get("source", "")
-            insts = " · ".join(_get_hk_insts(p))
-            doi = p.get("doi", "")
-            lines.append(f"  {i}. [{src}] {p['title']}")
-            if insts:
-                lines.append(f"     {insts}")
-            if doi:
-                lines.append(f"     https://doi.org/{doi}")
-        lines.append("")
+    lines = [f"HK Research Daily (按影响因子排名) - {date_str}", f"共 {total} 篇\n"]
+    for i, p in enumerate(ranked[:150], 1):
+        if_val = p.get("impact_factor")
+        if_label = f"IF {if_val}" if if_val is not None else "IF —"
+        src = p.get("source", "")
+        insts = " · ".join(_get_hk_insts(p))
+        doi = p.get("doi", "")
+        lines.append(f"{i}. [{if_label}] {p['title']}")
+        lines.append(f"     {p.get('journal','')} · {p.get('publication_date','')} · {src}")
+        if insts:
+            lines.append(f"     {insts}")
+        if doi:
+            lines.append(f"     https://doi.org/{doi}")
     return "\n".join(lines)
 
 

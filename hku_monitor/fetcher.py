@@ -1,3 +1,4 @@
+import os
 import re
 import ssl
 import json
@@ -5,13 +6,51 @@ import time
 import xml.etree.ElementTree as ET
 import urllib.request
 from datetime import date as Date, timedelta
-from .config import INSTITUTIONS, INSTITUTION_KEYWORDS, TOPICS
+from .config import INSTITUTIONS, INSTITUTION_KEYWORDS
 
 _CTX = ssl.create_default_context()
 _CTX.check_hostname = False
 _CTX.verify_mode = ssl.CERT_NONE
 
 _UA = "HKU-Paper-Monitor/1.0 (mailto:hku-monitor@example.com)"
+
+_IF_CACHE = None
+_IF_STRIPPED_CACHE = None
+
+
+def _load_impact_factors():
+    global _IF_CACHE, _IF_STRIPPED_CACHE
+    if _IF_CACHE is not None:
+        return _IF_CACHE, _IF_STRIPPED_CACHE
+    path = os.path.join(os.path.dirname(__file__), "..", "data", "jcr_if.json")
+    try:
+        with open(os.path.normpath(path), encoding="utf-8") as f:
+            _IF_CACHE = json.load(f)
+    except Exception:
+        _IF_CACHE = {}
+    stripped = {}
+    for name, if_val in _IF_CACHE.items():
+        s = re.sub(r"\s*\([^)]*\)\s*", " ", name).strip()
+        if s:
+            stripped.setdefault(s, if_val)
+    _IF_STRIPPED_CACHE = stripped
+    return _IF_CACHE, _IF_STRIPPED_CACHE
+
+
+def get_impact_factor(journal):
+    if not journal:
+        return None
+    mapping, stripped = _load_impact_factors()
+    j = journal.strip().lower()
+    if j in mapping:
+        return mapping[j]
+    j = re.split(r"\s*[:=|]\s*", j)[0].strip()
+    j = re.sub(r"\s*\([^)]*\)\s*", " ", j).strip()
+    if j in mapping:
+        return mapping[j]
+    if j in stripped:
+        return stripped[j]
+    return None
 
 
 def _req(url, timeout=45):
@@ -98,6 +137,8 @@ def _make_paper(source, source_id, title="", doi="", abstract="",
         "abstract": abstract,
         "publication_date": publication_date,
         "primary_location": journal,
+        "journal": journal,
+        "impact_factor": get_impact_factor(journal),
         "url": url,
         "authors": authors,
         "institutions": sorted(set(institutions)),
@@ -502,19 +543,16 @@ def fetch_papers(target_date=None):
         print(f"  [Dedup] removed {dupes} duplicates")
 
     for p in all_papers:
-        p["topics"] = classify_paper(p)
+        p["topics"] = []
 
-    by_topic = {}
-    for topic in TOPICS:
-        tname = topic["name"]
-        matched = [p for p in all_papers if tname in p["topics"]]
-        if matched:
-            by_topic[tname] = matched
+    with_if = [p for p in all_papers if p.get("impact_factor") is not None]
+    without_if = [p for p in all_papers if p.get("impact_factor") is None]
+    without_if.sort(key=lambda p: (p.get("publication_date") or "", p.get("title") or ""))
+    ranked = sorted(with_if, key=lambda p: -p["impact_factor"]) + without_if
 
     return {
         "date": date_str,
         "total_papers": len(all_papers),
-        "total_classified": sum(len(v) for v in by_topic.values()),
-        "by_topic": by_topic,
+        "ranked_papers": ranked,
         "all_papers": all_papers,
     }

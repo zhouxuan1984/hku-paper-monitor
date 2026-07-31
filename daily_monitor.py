@@ -25,10 +25,14 @@ def main():
     print(f"[MONITOR] Fetching papers for {query_date} ...")
     data = fetch_papers(query_date)
 
+    ranked = data["ranked_papers"]
+    with_if = [p for p in ranked if p.get("impact_factor") is not None]
     print(f"[MONITOR] Total: {data['total_papers']} papers, "
-          f"{data['total_classified']} classified")
-    for tname, papers in data["by_topic"].items():
-        print(f"  {tname}: {len(papers)} 篇")
+          f"{len(with_if)} with impact factor")
+    top10 = ranked[:10]
+    print("[MONITOR] Top 10 by IF:")
+    for p in top10:
+        print(f"  IF {p.get('impact_factor', '-'):<6} {p.get('journal',''):<40} {p['title'][:50]}")
 
     html = build_html(data)
     subject = f"HK Research Daily - {query_date}"

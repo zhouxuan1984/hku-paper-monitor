@@ -1,18 +1,18 @@
 # HK Research Daily Monitor
 
-每日自动监测香港八所大学在 22 个前沿科技领域的全球核心期刊论文发表情况，生成中文报告并推送到指定邮箱。
+每日自动监测香港八所大学在全球期刊的论文发表情况，按期刊影响因子（JCR 2024）排序，生成中文报告并推送到指定邮箱。
 
 ## 覆盖院校
 
 香港大学、香港中文大学、香港科技大学、香港城市大学、香港理工大学、香港浸会大学、香港岭南大学、香港教育大学
 
-## 覆盖领域
-
-集成电路、航空航天、生物医药、低空经济、新型储能、智能机器人、量子科技、生物制造、氢能、脑机接口、具身智能、6G、新一代信息技术、生物技术、新能源、新材料、高端装备、新能源汽车、绿色环保、海洋装备、人工智能
-
 ## 数据来源
 
-[OpenAlex](https://openalex.org/) — 免费开放学术图谱，聚合 Scopus、PubMed、Crossref 等 2.5 亿+论文元数据。
+- [OpenAlex](https://openalex.org/) — 免费开放学术图谱，聚合 Scopus、PubMed、Crossref 等 2.5 亿+论文元数据。
+- [PubMed](https://pubmed.ncbi.nlm.nih.gov/) — 生物医学文献数据库。
+- [arXiv](https://arxiv.org/) — 预印本平台（物理、数学、计算机科学等）。
+- [Semantic Scholar](https://www.semanticscholar.org/) — 引用计数等补充信息。
+- 影响因子数据来自 2024 年 JCR（Clarivate），本地映射表 `data/jcr_if.json`（21,527 本期刊）。
 
 ## 快速开始
 
@@ -50,7 +50,7 @@ git push -u origin main
 
 ### 4. 验证部署
 
-- Actions 会在 **每天北京时间 09:00** 自动运行
+- Actions 会在 **每天北京时间 23:00** 自动运行
 - 也可以在 GitHub Actions 页面手动触发 `workflow_dispatch`
 
 ## 本地测试
@@ -76,17 +76,19 @@ python3 daily_monitor.py
 
 邮件包含：
 - 顶部概要：日期、总论文数、各院校发文数
-- 按领域分组的论文列表（标题、期刊、DOI、短摘要、作者单位）
-- 每个领域标注 "共 N 篇"
+- 按期刊影响因子降序排列的论文列表（标题、期刊、IF 徽标、DOI、短摘要、作者单位、引用数、百分位）
+- 最多展示前 150 篇，完整列表见文章内链接
 
 ## 项目结构
 
 ```
 hku-paper-monitor/
 ├── .github/workflows/daily_monitor.yml   # GitHub Actions 定时任务
+├── data/
+│   └── jcr_if.json                       # 期刊影响因子映射表 (JCR 2024)
 ├── hku_monitor/
-│   ├── config.py     # 院校 + 领域配置
-│   ├── fetcher.py    # OpenAlex API 查询 + 论文分类
+│   ├── config.py     # 院校 + 关键词配置
+│   ├── fetcher.py    # 多数据源 API 查询 + 院校匹配 + IF 排名
 │   └── mailer.py     # HTML 报告生成 + 邮件发送
 ├── daily_monitor.py  # 入口脚本
 ├── requirements.txt  # 无外部依赖（纯 Python 标准库）
