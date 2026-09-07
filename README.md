@@ -50,7 +50,7 @@ git push -u origin main
 
 ### 4. 验证部署
 
-- Actions 会在 **每天北京时间 23:00** 自动运行
+- Actions 会在 **每天北京时间 0:30** 自动运行
 - 也可以在 GitHub Actions 页面手动触发 `workflow_dispatch`
 
 ## 本地测试

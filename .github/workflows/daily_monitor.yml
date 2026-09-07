@@ -2,8 +2,8 @@ name: Daily Paper Monitor
 
 on:
   schedule:
-    # UTC 15:00 = 北京时间 23:00
-    - cron: '0 15 * * *'
+    # UTC 16:30 = 北京时间 0:30
+    - cron: '0 16 * * *'
   workflow_dispatch:
 
 jobs:
